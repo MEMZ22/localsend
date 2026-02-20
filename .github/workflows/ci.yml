@@ -54,6 +54,13 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
 
+      # ========== Rust 工具链配置（新增）==========
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
       # ========== 缓存配置 ==========
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -74,6 +81,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      # ========== 预安装 cargo-expand（修复关键）==========
+      - name: Install cargo-expand (compatible version)
+        run: cargo install cargo-expand --version 1.0.118 --force
+
       # ========== 依赖安装 ==========
       - name: Dependencies (app)
         working-directory: app
@@ -83,7 +94,7 @@ jobs:
         working-directory: app/rust_builder/cargokit/build_tool
         run: dart pub get
 
-      # ========== FRB 代码生成（已修复）==========
+      # ========== FRB 代码生成 ==========
       - name: Install Flutter Rust Bridge Codegen
         run: cargo install flutter_rust_bridge_codegen --force
 
