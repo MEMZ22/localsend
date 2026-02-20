@@ -1,3 +1,5 @@
+# .github/workflows/ci.yml
+
 name: CI
 
 on:
@@ -15,6 +17,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -23,9 +26,11 @@ jobs:
       - name: Dependencies (app)
         working-directory: app
         run: flutter pub get
+      
       - name: Remove gen directory (app)
         working-directory: app
         run: rm -rf lib/gen
+      
       - name: Check format (app)
         working-directory: app
         run: dart format --set-exit-if-changed lib test
@@ -33,6 +38,7 @@ jobs:
       - name: Dependencies (common)
         working-directory: common
         run: dart pub get
+      
       - name: Check format (common)
         working-directory: common
         run: dart format --set-exit-if-changed lib test
@@ -42,31 +48,54 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
 
+      # ========== 缓存配置 ==========
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cache Flutter Pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # ========== 依赖安装 ==========
       - name: Dependencies (app)
         working-directory: app
         run: flutter pub get
 
-      # ========== 新增：获取 build_tool 依赖 ==========
       - name: Dependencies (build_tool)
         working-directory: app/rust_builder/cargokit/build_tool
         run: dart pub get
 
-      # ========== 新增：生成 FRB 代码（如果需要）==========
+      # ========== FRB 代码生成（已修复）==========
       - name: Install Flutter Rust Bridge Codegen
         run: cargo install flutter_rust_bridge_codegen --force
 
       - name: Generate FRB Code
         working-directory: app
-        run: dart run flutter_rust_bridge_codegen generate
+        run: flutter_rust_bridge_codegen generate
 
+      # ========== 代码检查与测试 ==========
       - name: Analyze (app)
         working-directory: app
         run: flutter analyze
+      
       - name: Test (app)
         working-directory: app
         run: flutter test
@@ -74,9 +103,11 @@ jobs:
       - name: Dependencies (common)
         working-directory: common
         run: dart pub get
+      
       - name: Analyze (common)
         working-directory: common
         run: dart analyze
+      
       - name: Test (common)
         working-directory: common
         run: dart test
@@ -86,18 +117,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      
       - name: Extract version from pubspec.yaml
         id: pubspec_version
         run: |
           VERSION=$(grep '^version: ' app/pubspec.yaml | sed 's/version: //' | sed 's/\+.*//')
           echo "Pubspec version is $VERSION"
           echo "pubspec_version=$VERSION" >> $GITHUB_ENV
+      
       - name: Extract version from Inno Setup configuration
         id: inno_version
         run: |
           VERSION=$(grep '#define MyAppVersion ' scripts/compile_windows_exe-inno.iss | sed 's/#define MyAppVersion "//' | sed 's/"//')
           echo "Inno Setup version is $VERSION"
           echo "inno_version=$VERSION" >> $GITHUB_ENV
+      
       - name: Compare pubspec and Inno Setup versions
         run: |
           if [ "$pubspec_version" != "$inno_version" ]; then
