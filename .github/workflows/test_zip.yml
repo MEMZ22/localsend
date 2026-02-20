@@ -37,9 +37,25 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
 
+      # ========== 新增：安装 Rust ==========
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+
+      # ========== 新增：安装 FRB 代码生成器 ==========
+      - name: Install Flutter Rust Bridge Codegen
+        run: cargo install flutter_rust_bridge_codegen --force
+
       - name: Dependencies
         working-directory: app
         run: flutter pub get
+
+      # ========== 新增：生成 FRB 桥接代码 ==========
+      - name: Generate FRB Code
+        working-directory: app
+        run: dart run flutter_rust_bridge_codegen generate
 
       - name: Compile for Windows
         working-directory: app
