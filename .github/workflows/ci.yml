@@ -50,6 +50,20 @@ jobs:
       - name: Dependencies (app)
         working-directory: app
         run: flutter pub get
+
+      # ========== 新增：获取 build_tool 依赖 ==========
+      - name: Dependencies (build_tool)
+        working-directory: app/rust_builder/cargokit/build_tool
+        run: dart pub get
+
+      # ========== 新增：生成 FRB 代码（如果需要）==========
+      - name: Install Flutter Rust Bridge Codegen
+        run: cargo install flutter_rust_bridge_codegen --force
+
+      - name: Generate FRB Code
+        working-directory: app
+        run: dart run flutter_rust_bridge_codegen generate
+
       - name: Analyze (app)
         working-directory: app
         run: flutter analyze
@@ -78,14 +92,12 @@ jobs:
           VERSION=$(grep '^version: ' app/pubspec.yaml | sed 's/version: //' | sed 's/\+.*//')
           echo "Pubspec version is $VERSION"
           echo "pubspec_version=$VERSION" >> $GITHUB_ENV
-
       - name: Extract version from Inno Setup configuration
         id: inno_version
         run: |
           VERSION=$(grep '#define MyAppVersion ' scripts/compile_windows_exe-inno.iss | sed 's/#define MyAppVersion "//' | sed 's/"//')
           echo "Inno Setup version is $VERSION"
           echo "inno_version=$VERSION" >> $GITHUB_ENV
-
       - name: Compare pubspec and Inno Setup versions
         run: |
           if [ "$pubspec_version" != "$inno_version" ]; then
